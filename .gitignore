@@ -1,0 +1,42 @@
+# Binaries for programs and plugins
+*.exe
+*.darwin
+*.linux
+*.windows
+*.freebsd
+*.netbsd
+*.openbsd
+*.dragonfly
+
+# Test binary, generated with `go test -c`
+*.test
+
+# Output of the go toolchain when building to a directory (e.g., `go build -o out/`)
+out/
+
+# Dependency directories (go modules)
+# This ignores the downloaded modules, but keeps go.mod and go.sum.
+# Modules are typically managed by `go mod download` or `go mod tidy`.
+# If you are using vendoring (go mod vendor), uncomment the line below.
+# vendor/
+
+# For a more specific approach if you use `go mod vendor` to create a `vendor` directory:
+# The `go.mod` and `go.sum` files should *always* be committed.
+# vendor/ # Uncomment if you use `go mod vendor` and don't want to commit vendored dependencies
+
+# Environment variables that might be set locally
+.env
+.flaskenv
+
+# Editor-specific files
+.idea/             # IntelliJ IDEA / GoLand
+.vscode/           # VS Code (if you don't want to share project-specific settings)
+*.swp              # Vim swap files
+*~                 # Backup files
+.DS_Store          # macOS specific
+Thumbs.db          # Windows specific
+
+# Other potential temporary files
+*.tmp
+*.log
+*.csv
