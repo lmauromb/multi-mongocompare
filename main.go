@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,15 +45,15 @@ func main() {
 	// Connect to MongoDB
 	sourceClient, err := connectToMongoDB(sourceMongoURI)
 	if err != nil {
-		log.Fatal("Failed to connect to MongoDB:", err)
+		log.Fatal("Failed to connect to source MongoDB:", err)
 	}
 	defer sourceClient.Disconnect(context.Background())
 
 	targetClient, err := connectToMongoDB(targetMongoURI)
 	if err != nil {
-		log.Fatal("Failed to connect to MongoDB:", err)
+		log.Fatal("Failed to connect to target MongoDB:", err)
 	}
-	defer sourceClient.Disconnect(context.Background())
+	defer targetClient.Disconnect(context.Background())
 
 	// Gather all databases and collections
 	collections, err := gatherCollections(sourceClient)
@@ -112,6 +113,22 @@ func connectToMongoDB(uri string) (*mongo.Client, error) {
 	return client, nil
 }
 
+// shouldSkipCollection checks if a collection should be skipped
+func shouldSkipCollection(collName string) bool {
+	systemPrefixes := []string{
+		"system.",
+		"fs.chunks",
+		"fs.files",
+	}
+
+	for _, prefix := range systemPrefixes {
+		if strings.HasPrefix(collName, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // gatherCollections retrieves all databases and collections
 func gatherCollections(client *mongo.Client) ([]CollectionInfo, error) {
 	ctx := context.Background()
@@ -137,8 +154,14 @@ func gatherCollections(client *mongo.Client) ([]CollectionInfo, error) {
 			continue
 		}
 
-		// Add each collection to our slice
+		// Add each collection to our slice, but skip system collections
 		for _, collName := range collectionNames {
+			// Skip system collections (system.views, system.indexes, etc.)
+			if shouldSkipCollection(collName) {
+				log.Printf("Skipping system collection: %s.%s", dbName, collName)
+				continue
+			}
+
 			collections = append(collections, CollectionInfo{
 				DBName:         dbName,
 				CollectionName: collName,
@@ -181,12 +204,9 @@ func processCollectionsWithSemaphore(sourceClient *mongo.Client, targetClient *m
 			targetCollection := targetClient.Database(collInfo.DBName).Collection(collInfo.CollectionName)
 
 			// Count documents
-			// count, err := countDocuments(client, collInfo)
 			checkCountsResult, sourceCount, targetCount := checkCounts(sourceCollection, targetCollection)
 			if !checkCountsResult {
-				errorCh <- fmt.Errorf("Document counts don't match in %s. Source: %d, Target: %d\n", collInfo.FullName, sourceCount, targetCount)
-
-				// return
+				errorCh <- fmt.Errorf("Document counts don't match in %s. Source: %d, Target: %d", collInfo.FullName, sourceCount, targetCount)
 			}
 
 			// Send result to channel
@@ -243,18 +263,20 @@ func countDocuments(client *mongo.Client, collInfo CollectionInfo) (int64, error
 }
 
 func checkCounts(sourceCollection *mongo.Collection, targetCollection *mongo.Collection) (bool, int64, int64) {
-	sourceCount, err := sourceCollection.CountDocuments(context.TODO(), bson.D{})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	sourceCount, err := sourceCollection.CountDocuments(ctx, bson.D{})
 	if err != nil {
-		log.Fatal(err)
-	}
-	targetCount, err := targetCollection.CountDocuments(context.TODO(), bson.D{})
-	if err != nil {
-		log.Fatal(err)
+		log.Printf("Error counting source collection %s: %v", sourceCollection.Name(), err)
+		return false, 0, 0
 	}
 
-	if sourceCount == targetCount {
-		return true, sourceCount, targetCount
-	} else {
-		return false, sourceCount, targetCount
+	targetCount, err := targetCollection.CountDocuments(ctx, bson.D{})
+	if err != nil {
+		log.Printf("Error counting target collection %s: %v", targetCollection.Name(), err)
+		return false, sourceCount, 0
 	}
+
+	return sourceCount == targetCount, sourceCount, targetCount
 }
