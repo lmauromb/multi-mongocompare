@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25' # Specify your Go version
+          go-version: '1.22' # Using 1.22 for compatibility, you can use 1.25 if your code is compatible
 
       - name: Get current tag (version)
         id: get_version
@@ -38,20 +38,20 @@ jobs:
       - name: Upload Linux (amd64) Binary
         uses: actions/upload-artifact@v4
         with:
-          name: multi-mongocompare_linux_amd64
-          path: multi-mongocompare_linux_amd64
+          name: multi-mongocompare_linux_amd64 # Name of the artifact
+          path: multi-mongocompare_linux_amd64 # Path to the file to upload
 
       - name: Upload macOS (amd64) Binary
         uses: actions/upload-artifact@v4
         with:
-          name: multi-mongocompare_macos_amd64
-          path: multi-mongocompare_macos_amd64
+          name: multi-mongocompare_macos_amd64 # Name of the artifact
+          path: multi-mongocompare_macos_amd64 # Path to the file to upload
 
       - name: Upload macOS (arm64) Binary
         uses: actions/upload-artifact@v4
         with:
-          name: multi-mongocompare_macos_arm64
-          path: multi-mongocompare_macos_arm64
+          name: multi-mongocompare_macos_arm64 # Name of the artifact
+          path: multi-mongocompare_macos_arm64 # Path to the file to upload
 
   release:
     needs: build # This job depends on the 'build' job completing successfully
@@ -62,6 +62,10 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
+          # This downloads artifacts into a directory structure like:
+          # artifacts/multi-mongocompare_linux_amd64/multi-mongocompare_linux_amd64
+          # artifacts/multi-mongocompare_macos_amd64/multi-mongocompare_macos_amd64
+          # artifacts/multi-mongocompare_macos_arm64/multi-mongocompare_macos_arm64
           path: artifacts
 
       - name: Get current tag (version)
@@ -79,6 +83,6 @@ jobs:
           files: |
             artifacts/multi-mongocompare_linux_amd64/multi-mongocompare_linux_amd64
             artifacts/multi-mongocompare_macos_amd64/multi-mongocompare_macos_amd64
-            artifacts/multi-mongocompare_macos_arm64/multi-mongocompare_macos_arm64 # Added arm64 binary
+            artifacts/multi-mongocompare_macos_arm64/multi-mongocompare_macos_arm64 # Corrected path
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is automatically provided
